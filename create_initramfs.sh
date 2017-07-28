@@ -37,6 +37,7 @@ inittab_url="https://raw.githubusercontent.com/buildroot/buildroot/master/packag
 
 # Get the distro we're running on
 ID=""
+# shellcheck disable=SC1091
 source /etc/os-release 2>/dev/null
 
 #----------
@@ -49,7 +50,7 @@ usage() {
 	Usage: $0 --arch <string> [options]
 
 	Required options:
-	--arch <string>		architecture, e.g. arm, ppc64, ppc64le, i386, x86_64
+	--arch <string>		architecture (aarch64, arm, i386, ppc64, ppc64le, x86_64)
 
 	Options:
 	--dir <dir>		directory to use for building and output of initramfs
@@ -135,24 +136,35 @@ done
 [[ "$(type xz 2>/dev/null)" ]] || { echo "Please install xz" ; exit 1 ; }
 
 # Get a busybox RPM from Fedora
-if [[ "${ARCH}" == "ppc64" ]] ; then
-	pkg=busybox-1.22.1-4.fc23.ppc64.rpm
-	pkgurl=${pkgurl:-https://dl.fedoraproject.org/pub/fedora-secondary/releases/23/Everything/ppc64/os/Packages/b/}${pkg}
-elif [[ "${ARCH}" == "ppc64le" ]] ; then
-	pkg=busybox-1.22.1-4.fc23.ppc64le.rpm
-	pkgurl=https://dl.fedoraproject.org/pub/fedora-secondary/releases/23/Everything/ppc64le/os/Packages/b/$pkg
-elif [[ "${ARCH}" == "i386" ]] ; then
-	pkg=busybox-1.22.1-4.fc23.i686.rpm
-	pkgurl=https://dl.fedoraproject.org/pub/fedora/linux/releases/23/Everything/i386/os/Packages/b/${pkg}
-elif [[ "${ARCH}" == "x86_64" ]] ; then
-	pkg=busybox-1.22.1-4.fc23.x86_64.rpm
-	pkgurl=https://dl.fedoraproject.org/pub/fedora/linux/releases/23/Everything/x86_64/os/Packages/b/${pkg}
-elif [[ "${ARCH}" == "arm" ]] ; then
-	pkg=busybox-1.22.1-4.fc23.armv7hl.rpm
-	pkgurl=https://dl.fedoraproject.org/pub/fedora/linux/releases/23/Everything/armhfp/os/Packages/b/${pkg}
-else
+FEDORA_RELEASE=26
+case "${ARCH}" in
+	aarch64)
+		PKG="busybox-1.22.1-6.fc26.aarch64.rpm"
+		PKG_URL="${PKG_URL:-https://dl.fedoraproject.org/pub/fedora-secondary/releases/${FEDORA_RELEASE}/Everything/aarch64/os/Packages/b/${PKG}}"
+		;;
+	arm)
+		PKG="busybox-1.22.1-6.fc26.armv7hl.rpm"
+		PKG_URL="${PKG_URL:-https://dl.fedoraproject.org/pub/fedora/linux/releases/${FEDORA_RELEASE}/Everything/armhfp/os/Packages/b/${PKG}}"
+		;;
+	i386)
+		PKG="busybox-1.22.1-6.fc26.i686.rpm"
+		PKG_URL="${PKG_URL:-https://dl.fedoraproject.org/pub/fedora-secondary/releases/${FEDORA_RELEASE}/Everything/i386/os/Packages/b/${PKG}}"
+		;;
+	ppc64)
+		PKG="busybox-1.22.1-6.fc26.ppc64.rpm"
+		PKG_URL="${PKG_URL:-https://dl.fedoraproject.org/pub/fedora-secondary/releases/${FEDORA_RELEASE}/Everything/ppc64/os/Packages/b/${PKG}}"
+		;;
+	ppc64le)
+		PKG="busybox-1.22.1-6.fc26.ppc64le.rpm"
+		PKG_URL="${PKG_URL:-https://dl.fedoraproject.org/pub/fedora-secondary/releases/${FEDORA_RELEASE}/Everything/ppc64le/os/Packages/b/${PKG}}"
+		;;
+	x86_64)
+		PKG="busybox-1.22.1-6.fc26.x86_64.rpm"
+		PKG_URL="${PKG_URL:-https://dl.fedoraproject.org/pub/fedora/linux/releases/${FEDORA_RELEASE}/Everything/x86_64/os/Packages/b/${PKG}}"
+		;;
+	*)
 	usage
-fi
+esac
 
 #-------------
 # DO THE BUILD
@@ -163,14 +175,14 @@ mkdir -p "${DIR}" "${CACHE_DIR}" && cd "${DIR}"
 
 echo "Downloading busybox..."
 # Get pre-build static busybox from Fedora
-${WGET} -c ${pkgurl} -O "${CACHE_DIR}/${pkg}" || { echo "Failed to download the busybox RPM" ; exit 1 ; }
-cp "${CACHE_DIR}/${pkg}" .
+${WGET} -c "${PKG_URL}" -O "${CACHE_DIR}/${PKG}" || { echo "Failed to download the busybox RPM" ; exit 1 ; }
+cp "${CACHE_DIR}/${PKG}" .
 
 # Extract rpm to get busybox binary
 if [[ "${ID}" == "arch" ]]; then
-	rpm2cpio ${pkg} |xv -d |cpio -idm 2>/dev/null
+	rpm2cpio ${PKG} |xv -d |cpio -idm 2>/dev/null
 else
-	rpm2cpio ${pkg} |cpio -idm 2>/dev/null
+	rpm2cpio ${PKG} |cpio -idm 2>/dev/null
 fi
 
 # Create initramfs file structure
